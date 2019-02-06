@@ -117,8 +117,12 @@ func (h *HelmDeployer) Cleanup(ctx context.Context, out io.Writer) error {
 	return nil
 }
 
-func (h *HelmDeployer) helm(ctx context.Context, out io.Writer, arg ...string) error {
+func (h *HelmDeployer) helm(ctx context.Context, out io.Writer, useSecrets bool, arg ...string) error {
 	args := append([]string{"--kube-context", h.kubeContext}, arg...)
+
+	if useSecrets {
+		args = append([]string{"secrets"}, args...)
+	}
 
 	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Stdout = out
@@ -134,7 +138,7 @@ func (h *HelmDeployer) deployRelease(ctx context.Context, out io.Writer, r lates
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse the release name template")
 	}
-	if err := h.helm(ctx, out, "get", releaseName); err != nil {
+	if err := h.helm(ctx, out, false, "get", releaseName); err != nil {
 		color.Red.Fprintf(out, "Helm release %s not installed. Installing...\n", releaseName)
 		isInstalled = false
 	}
@@ -161,7 +165,7 @@ func (h *HelmDeployer) deployRelease(ctx context.Context, out io.Writer, r lates
 	if !r.SkipBuildDependencies {
 		// First build dependencies.
 		logrus.Infof("Building helm dependencies...")
-		if err := h.helm(ctx, out, "dep", "build", r.ChartPath); err != nil {
+		if err := h.helm(ctx, out, false, "dep", "build", r.ChartPath); err != nil {
 			return nil, errors.Wrap(err, "building helm dependencies")
 		}
 	}
@@ -265,7 +269,12 @@ func (h *HelmDeployer) deployRelease(ctx context.Context, out io.Writer, r lates
 	}
 	args = append(args, setOpts...)
 
-	helmErr := h.helm(ctx, out, args...)
+	useSecrets := false
+	if r.UseHelmSecrets {
+		useSecrets = true
+	}
+
+	helmErr := h.helm(ctx, out, useSecrets, args...)
 	return h.getDeployResults(ctx, ns, releaseName), helmErr
 }
 
@@ -320,7 +329,7 @@ func (h *HelmDeployer) packageChart(ctx context.Context, r latest.HelmRelease) (
 	}
 
 	buf := &bytes.Buffer{}
-	err := h.helm(ctx, buf, packageArgs...)
+	err := h.helm(ctx, buf, false, packageArgs...)
 	output := strings.TrimSpace(buf.String())
 	if err != nil {
 		return "", errors.Wrapf(err, "package chart into a .tgz archive (%s)", output)
@@ -336,7 +345,7 @@ func (h *HelmDeployer) packageChart(ctx context.Context, r latest.HelmRelease) (
 
 func (h *HelmDeployer) getReleaseInfo(ctx context.Context, release string) (*bufio.Reader, error) {
 	var releaseInfo bytes.Buffer
-	if err := h.helm(ctx, &releaseInfo, "get", release); err != nil {
+	if err := h.helm(ctx, &releaseInfo, false, "get", release); err != nil {
 		return nil, fmt.Errorf("error retrieving helm deployment info: %s", releaseInfo.String())
 	}
 	return bufio.NewReader(&releaseInfo), nil
@@ -360,7 +369,7 @@ func (h *HelmDeployer) deleteRelease(ctx context.Context, out io.Writer, r lates
 		return errors.Wrap(err, "cannot parse the release name template")
 	}
 
-	if err := h.helm(ctx, out, "delete", releaseName, "--purge"); err != nil {
+	if err := h.helm(ctx, out, false, "delete", releaseName, "--purge"); err != nil {
 		logrus.Debugf("deleting release %s: %v\n", releaseName, err)
 	}
 
