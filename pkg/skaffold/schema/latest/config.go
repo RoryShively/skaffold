@@ -199,6 +199,7 @@ type HelmRelease struct {
 	Wait                  bool                   `yaml:"wait,omitempty"`
 	RecreatePods          bool                   `yaml:"recreatePods,omitempty"`
 	SkipBuildDependencies bool                   `yaml:"skipBuildDependencies,omitempty"`
+	UseHelmSecrets        bool                   `yaml:"useHelmSecrets,omitempty"`
 	Overrides             map[string]interface{} `yaml:"overrides,omitempty"`
 	Packaged              *HelmPackaged          `yaml:"packaged,omitempty"`
 	ImageStrategy         HelmImageStrategy      `yaml:"imageStrategy,omitempty"`
