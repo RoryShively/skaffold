@@ -269,7 +269,7 @@ func (h *HelmDeployer) deployRelease(ctx context.Context, out io.Writer, r lates
 	}
 	args = append(args, setOpts...)
 
-	helmErr := h.helm(ctx, out, r.UseHelmSecrets , args...)
+	helmErr := h.helm(ctx, out, r.UseHelmSecrets, args...)
 	return h.getDeployResults(ctx, ns, releaseName), helmErr
 }
 
